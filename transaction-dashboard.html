@@ -338,6 +338,7 @@ footer span{color:rgba(255,255,255,0.8);font-weight:600;}
     <div class="filter-spacer"></div>
     <input class="search-box" id="searchBox" placeholder="Search supplier, account, description…" oninput="applyFilters()">
   </div>
+
 </div>
 
   <!-- KPIs -->
@@ -374,7 +375,13 @@ footer span{color:rgba(255,255,255,0.8);font-weight:600;}
   <!-- Transaction table -->
   <div class="table-card">
     <div class="table-header">
-      <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Transaction Detail</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">Transaction Detail</div>
+        <div id="acctFilterBadge" style="display:none;align-items:center;gap:8px;">
+          <span style="font-family:'IBM Plex Sans Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--navy);background:rgba(0,62,125,0.08);border:1.5px solid var(--navy);padding:3px 10px;border-radius:20px;" id="acctFilterLabel"></span>
+          <button onclick="clearAcctFilter()" style="background:transparent;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;line-height:1;font-weight:700;" title="Clear account filter">&#x2715; Show all</button>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span id="rowCount" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);"></span>
       </div>
@@ -421,7 +428,7 @@ const PERIOD_MONTHS = {1:"Sep",2:"Oct",3:"Nov",4:"Dec",5:"Jan",6:"Feb",7:"Mar",8
 
 const fileStore = {};
 let activeKey = null, allTx = [], filtered = [];
-let activeCat = "ALL", activePeriod = "ALL", searchQ = "";
+let activeCat = "ALL", activePeriod = "ALL", activeAcct = "ALL", searchQ = "";
 let txSortKey = "date", txSortDir = -1;
 let page = 1;
 const PAGE_SIZE = 25;
@@ -565,7 +572,7 @@ function setActiveFile(key){
   activeKey=key;
   var f=fileStore[key];
   allTx=f.tx;
-  activeCat="ALL"; activePeriod="ALL"; searchQ="";
+  activeCat="ALL"; activePeriod="ALL"; activeAcct="ALL"; searchQ="";
   document.getElementById("searchBox").value="";
   document.getElementById("deptSel").value=key;
   document.getElementById("hDept").style.display="flex";
@@ -616,6 +623,7 @@ function buildFilterPills(){
     var pStr=String(p);
     return '<button class="pill'+(String(activePeriod)===pStr?' active':'')+'" data-period="'+pStr+'" onclick="setPeriodBtn(this)">'+lbl+'</button>';
   }).join("");
+
 }
 
 function periodLabel(p){
@@ -649,6 +657,20 @@ function setCat(val,btn){
 function setPeriodBtn(btn){
   setPeriod(btn.getAttribute("data-period"), btn);
 }
+function filterByAccount(name){
+  activeAcct = name;
+  // Show the active filter badge above the table
+  document.getElementById("acctFilterBadge").style.display = "flex";
+  document.getElementById("acctFilterLabel").textContent = name;
+  applyFilters();
+  // Scroll to table
+  document.querySelector(".table-card").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function clearAcctFilter(){
+  activeAcct = "ALL";
+  document.getElementById("acctFilterBadge").style.display = "none";
+  applyFilters();
+}
 function setPeriod(val,btn){
   activePeriod=val;
   document.querySelectorAll("#periodFilters .pill").forEach(function(b){b.classList.remove("active");});
@@ -660,6 +682,7 @@ function applyFilters(){
   searchQ=document.getElementById("searchBox").value.toLowerCase();
   filtered=allTx.filter(function(t){
     if(activeCat!=="ALL" && t.category!==activeCat) return false;
+    if(activeAcct!=="ALL" && t.accountName!==activeAcct) return false;
     if(activePeriod!=="ALL"){
       if(!t.date) return false;
       var mk=String(t.date.getFullYear()*100+(t.date.getMonth()+1));
@@ -891,7 +914,7 @@ function renderPage(){
       +'<td><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;">'+fmtPeriod(t)+'</span></td>'
       +'<td>'+t.dateStr+'</td>'
       +'<td><span class="badge '+(bc[t.category]||"b-other")+'">'+t.category+'</span></td>'
-      +'<td title="'+esc(t.accountName)+'">'+esc(trunc(t.accountName,28))+'</td>'
+      +'<td title="'+esc(t.accountName)+'" style="cursor:pointer;" onclick="filterByAccount(\''+esc(t.accountName)+'\')"><span style="color:var(--navy);text-decoration:underline;text-underline-offset:2px;font-weight:600;">'+esc(trunc(t.accountName,28))+'</span></td>'
       +'<td title="'+esc(t.supplier)+'">'+esc(trunc(t.supplier,26))+'</td>'
       +'<td title="'+esc(t.staff)+'">'+esc(trunc(t.staff||"",22))+'</td>'
       +'<td title="'+esc(t.description)+'">'+esc(trunc(t.description,34))+'</td>'
@@ -928,7 +951,7 @@ function printDashboard() {
       +'<td><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;">'+fmtPeriod(t)+'</span></td>'
       +'<td>'+t.dateStr+'</td>'
       +'<td><span class="badge '+(bc[t.category]||"b-other")+'">'+t.category+'</span></td>'
-      +'<td>'+esc(trunc(t.accountName,28))+'</td>'
+      +'<td><span style="cursor:pointer;color:var(--navy);text-decoration:underline;text-underline-offset:2px;font-weight:600;" title="Click to filter by this account" onclick="filterByAccount(\''+esc(t.accountName)+'\')">'+esc(trunc(t.accountName,28))+'</span></td>'
       +'<td>'+esc(trunc(t.supplier,26))+'</td>'
       +'<td>'+esc(trunc(t.staff||"",22))+'</td>'
       +'<td>'+esc(trunc(t.description,34))+'</td>'
